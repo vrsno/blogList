@@ -15,6 +15,10 @@ app.listen(config.PORT, () => {
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("<h1>¡Servidor en ejecución!</h1>");
+});
+
 app.get("/api/blogs", (request, response) => {
   Blog.find({}).then((blogs) => {
     response.json(blogs);
@@ -22,10 +26,25 @@ app.get("/api/blogs", (request, response) => {
 });
 
 app.post("/api/blogs", (request, response) => {
-  const blog = new Blog(request.body);
+  const body = request.body;
 
-  blog.save().then((result) => {
-    response.status(201).json(result);
+  if (body.likes === undefined) {
+    return response.status(400).json({ error: "likes missing" });
+  }
+
+  if (body.title === undefined || body.url === undefined) {
+    return response.status(400).json({ error: "title or url missing" });
+  }
+
+  const blog = new Blog({
+    title: body.title,
+    author: body.author,
+    url: body.url,
+    likes: body.likes || 0,
+  });
+
+  blog.save().then((savedBlog) => {
+    response.status(201).json(savedBlog);
   });
 });
 
