@@ -6,6 +6,7 @@ const Blog = require("./models/blogs");
 const app = require("./app");
 const config = require("./utils/config");
 const logger = require("./utils/logger");
+
 const errorHandler = require("./utils/middleware").errorHandler;
 
 app.listen(config.PORT, () => {
@@ -23,6 +24,28 @@ app.get("/api/blogs", (request, response) => {
   Blog.find({}).then((blogs) => {
     response.json(blogs);
   });
+});
+
+app.get("/api/blogs/:id", (request, response, next) => {
+  const id = request.params.id;
+  Blog.findById(id)
+    .then((blog) => {
+      if (blog) {
+        response.json(blog);
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
+});
+
+app.delete("/api/blogs/:id", (request, response, next) => {
+  const id = request.params.id;
+  Blog.findByIdAndDelete(id)
+    .then(() => {
+      response.status(204).end();
+    })
+    .catch((error) => next(error));
 });
 
 app.post("/api/blogs", (request, response) => {
@@ -46,6 +69,25 @@ app.post("/api/blogs", (request, response) => {
   blog.save().then((savedBlog) => {
     response.status(201).json(savedBlog);
   });
+});
+
+//cambiar likes
+app.put("/api/blogs/:id", (request, response, next) => {
+  const { likes } = request.body;
+
+  Blog.findByIdAndUpdate(
+    request.params.id,
+    { likes },
+    { new: true, runValidators: true, context: "query" }
+  )
+    .then((updatedBlog) => {
+      if (updatedBlog) {
+        response.json(updatedBlog);
+      } else {
+        response.status(404).send({ error: "Blog not found" });
+      }
+    })
+    .catch((error) => next(error));
 });
 
 app.use(errorHandler);
