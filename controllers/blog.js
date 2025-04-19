@@ -1,24 +1,65 @@
 const blogRouter = require("express").Router();
 const Blog = require("../models/blogs");
+const User = require("../models/users");
+
+const jwt = require("jsonwebtoken");
+
+const getTokenFrom = (request) => {
+  const authorization = request.get("authorization");
+  if (authorization && authorization.startsWith("Bearer ")) {
+    return authorization.replace("Bearer ", "");
+  }
+  return null;
+};
 
 blogRouter.get("/", async (request, response) => {
-  const blogs = await Blog.find({});
-  response.json(blogs);
+  const notes = await Blog.find({}).populate("users", {
+    title: 1,
+    author: 1,
+    url: 1,
+    likes: 1,
+  });
+
+  response.json(notes);
 });
 
 blogRouter.post("/", async (request, response) => {
-  const body = request.body;
+  const token = getTokenFrom(request);
+  console.log("Token recibido:", token);
 
-  const blog = new Blog({
-    title: body.title,
-    author: body.author,
-    url: body.url,
-    likes: body.likes || 0,
-  });
+  if (!token) {
+    return response.status(401).json({ error: "token missing or invalid" }); // Responder con error 401
+  }
 
-  const savedBlog = await blog.save();
+  try {
+    const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET);
+    if (!decodedToken || !decodedToken.id) {
+      return response.status(401).json({ error: "token missing or invalid" });
+    }
+    const user = await User.findById(decodedToken.id);
+    if (!user) {
+      return response.status(404).json({ error: "user not found" });
+    }
 
-  response.status(201).json(savedBlog);
+    const blog = new Blog({
+      title: request.body.title,
+      author: request.body.author,
+      url: request.body.url,
+      likes: request.body.likes || 0,
+      user: user._id,
+    });
+
+    const savedBlog = await blog.save();
+    user.blogs = user.blogs.concat(savedBlog._id);
+    await user.save();
+
+    response.status(201).json(savedBlog);
+  } catch (error) {
+    console.error("Error al procesar el token o crear el blog:", error);
+    response
+      .status(500)
+      .json({ error: "An error occurred while processing the request" });
+  }
 });
 
 blogRouter.get("/:id", async (request, response) => {

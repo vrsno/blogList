@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const Blog = require("./models/blogs");
+const User = require("./models/users");
 
 const app = require("./app");
 const config = require("./utils/config");
@@ -18,6 +19,12 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("<h1>¡Servidor en ejecución!</h1>");
+});
+
+app.get("/api/users", (req, res) => {
+  User.find({}).then((users) => {
+    res.json(users);
+  });
 });
 
 app.get("/api/blogs", (request, response) => {
