@@ -77,8 +77,30 @@ blogRouter.get("/:id", async (request, response) => {
 });
 
 blogRouter.delete("/:id", async (request, response) => {
-  await Blog.findByIdAndDelete(request.params.id);
-  response.status(204).end();
+  try {
+    const decodedToken = jwt.verify(request.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return response.status(401).json({ error: "token inválido o faltante" });
+    }
+
+    const blog = await Blog.findById(request.params.id);
+    if (!blog) {
+      return response.status(404).json({ error: "blog no encontrado" });
+    }
+
+    // Solo el usuario creador puede borrar el blog
+    if (blog.user.toString() !== decodedToken.id.toString()) {
+      return response
+        .status(403)
+        .json({ error: "no autorizado para borrar este blog" });
+    }
+
+    await Blog.findByIdAndDelete(request.params.id);
+    response.status(204).end();
+  } catch (error) {
+    console.error(error);
+    response.status(400).json({ error: "error al eliminar el blog" });
+  }
 });
 
 blogRouter.put("/:id", async (request, response) => {
@@ -89,6 +111,7 @@ blogRouter.put("/:id", async (request, response) => {
     author: body.author,
     url: body.url,
     likes: body.likes,
+    user: body.user.id,
   };
 
   try {
